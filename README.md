@@ -18,7 +18,7 @@ cp .env.sample .env
 # 必須: Trocco APIキー
 TROCCO_API_KEY=your_actual_api_key
 
-# 必須: Trocco APIのベースURL
+# 推奨: Trocco APIのベースURL（URL生成に必要）
 TROCCO_BASE_URL=https://your-company.trocco.io/api
 ```
 
