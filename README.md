@@ -60,3 +60,24 @@ Claude Desktopの設定ファイルに以下を追加：
 - `strategy`: 検索戦略（オプション、デフォルト: exhaustive_scan）
 - `maxBatches`: 最大バッチ数（オプション、デフォルト: 10、最大: 50）
 
+## 例
+
+```
+trocco_batch_search(searchTerm="売上", strategy="exhaustive_scan", maxBatches=20)
+```
+
+これにより、「売上」を含むジョブ定義を最大20バッチ分検索します。
+
+## 取得できる情報
+
+- **基本情報**: 名前、説明、入出力タイプ、作成者、URL
+- **S3設定**: バケット名、パスプレフィックス (`s3://bucket/prefix`)  
+- **Snowflake設定**: データベース.スキーマ.テーブル (warehouse: name)
+- **BigQuery設定**: プロジェクト.データセット.テーブル
+
+## 制限事項
+
+- **検索対象**: データ転送設定（job_definitions）のみ
+- **詳細取得**: 検索結果の最初の5件のみ詳細情報を取得
+- **対応DB**: S3、Snowflake、BigQueryのみ詳細表示対応
+

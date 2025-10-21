@@ -35,6 +35,132 @@ function generateJobDefinitionUrl(jobId) {
   return `${webBaseUrl}/job_definitions/${jobId}`;
 }
 
+// 個別ジョブ定義の詳細を取得する関数
+async function fetchJobDefinitionDetails(jobId) {
+  try {
+    const response = await client.request({
+      path: `job_definitions/${jobId}`,
+      method: 'GET',
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch details for job ${jobId}:`, error.message);
+    return null;
+  }
+}
+
+// S3とSnowflakeの設定詳細を抽出する関数
+function extractConfigDetails(details) {
+  const config = {};
+  
+  // S3入力設定 - 複数のパターンを試行
+  if (details?.input_option_type === 's3' && details?.input_option) {
+    let s3Config = null;
+    
+    // パターン1: s3_input_option
+    if (details.input_option.s3_input_option) {
+      s3Config = details.input_option.s3_input_option;
+    }
+    // パターン2: 直接input_option内
+    else if (details.input_option.bucket) {
+      s3Config = details.input_option;
+    }
+    
+    if (s3Config) {
+      config.input_s3 = {
+        bucket: s3Config.bucket,
+        prefix: s3Config.path_prefix || s3Config.prefix || s3Config.key_prefix || '',
+        region: s3Config.region,
+      };
+    }
+  }
+  
+  // Snowflake入力設定
+  if (details?.input_option_type === 'snowflake' && details?.input_option?.snowflake_input_option) {
+    const sfConfig = details.input_option.snowflake_input_option;
+    config.input_snowflake = {
+      database: sfConfig.database,
+      schema: sfConfig.schema,
+      table: sfConfig.table,
+      warehouse: sfConfig.warehouse,
+    };
+  }
+  
+  // S3出力設定は一般的でないが念のため
+  if (details?.output_option_type === 's3' && details?.output_option) {
+    let s3Config = null;
+    
+    if (details.output_option.s3_output_option) {
+      s3Config = details.output_option.s3_output_option;
+    } else if (details.output_option.bucket) {
+      s3Config = details.output_option;
+    }
+    
+    if (s3Config) {
+      config.output_s3 = {
+        bucket: s3Config.bucket,
+        prefix: s3Config.path_prefix || s3Config.prefix || s3Config.key_prefix || '',
+        region: s3Config.region,
+      };
+    }
+  }
+  
+  // Snowflake出力設定
+  if (details?.output_option_type === 'snowflake' && details?.output_option?.snowflake_output_option) {
+    const sfConfig = details.output_option.snowflake_output_option;
+    config.output_snowflake = {
+      database: sfConfig.database,
+      schema: sfConfig.schema,
+      table: sfConfig.table,
+      warehouse: sfConfig.warehouse,
+    };
+  }
+  
+  // BigQuery出力設定
+  if (details?.output_option_type === 'bigquery' && details?.output_option?.bigquery_output_option) {
+    const bqConfig = details.output_option.bigquery_output_option;
+    config.output_bigquery = {
+      project_id: bqConfig.project_id,
+      dataset_id: bqConfig.dataset_id,
+      table_id: bqConfig.table_id,
+    };
+  }
+  
+  return config;
+}
+
+// 設定詳細を表示用にフォーマットする関数
+function formatConfigDetails(config) {
+  const details = [];
+  
+  // 入力設定
+  if (config.input_s3) {
+    const s3 = config.input_s3;
+    details.push(`入力: s3://${s3.bucket}/${s3.prefix || ''}`);
+  } else if (config.input_snowflake) {
+    const sf = config.input_snowflake;
+    const path = [sf.database, sf.schema, sf.table].filter(Boolean).join('.');
+    details.push(`入力: ${path} (warehouse: ${sf.warehouse})`);
+  }
+  
+  // 出力設定
+  if (config.output_s3) {
+    const s3 = config.output_s3;
+    details.push(`出力: s3://${s3.bucket}/${s3.prefix || ''}`);
+  } else if (config.output_snowflake) {
+    const sf = config.output_snowflake;
+    const path = [sf.database, sf.schema, sf.table].filter(Boolean).join('.');
+    details.push(`出力: ${path} (warehouse: ${sf.warehouse})`);
+  } else if (config.output_bigquery) {
+    const bq = config.output_bigquery;
+    details.push(`出力: ${bq.project_id}.${bq.dataset_id}.${bq.table_id}`);
+  }
+  
+  return details.length > 0 ? `\n   ${details.join('\n   ')}` : '';
+}
+
+
 server.registerTool(
   'trocco_batch_search',
   {
@@ -210,6 +336,18 @@ server.registerTool(
         arr.findIndex(m => m.id === match.id) === index
       );
 
+      // 詳細情報を取得（最初の5件のみ、表示用）
+      const enrichedMatches = await Promise.all(
+        uniqueMatches.slice(0, 5).map(async (item) => {
+          const details = await fetchJobDefinitionDetails(item.id);
+          const config = details ? extractConfigDetails(details) : {};
+          return {
+            ...item,
+            config,
+          };
+        })
+      );
+
       const result = {
         ok: true,
         strategy,
@@ -228,15 +366,15 @@ server.registerTool(
       };
 
       const resultText = uniqueMatches.length > 0
-        ? `🔍 バッチ検索結果: "${searchTerm}"\n\n` +
+        ? `バッチ検索結果: "${searchTerm}"\n\n` +
           `戦略: ${strategy}\n` +
           `進捗: ${result.searchProgress}\n` +
           `見つかった設定: ${uniqueMatches.length}件\n\n` +
-          uniqueMatches.slice(0, 5).map((item, i) => 
-            `${i + 1}. ${item.name} (ID: ${item.id})\n   ${item.input_type} → ${item.output_type}\n   🔗 ${generateJobDefinitionUrl(item.id)}`
+          enrichedMatches.map((item, i) => 
+            `${i + 1}. ${item.name} (ID: ${item.id})\n   ${item.input_type} → ${item.output_type}${formatConfigDetails(item.config)}\n   URL: ${generateJobDefinitionUrl(item.id)}`
           ).join('\n\n') +
           (uniqueMatches.length > 5 ? `\n\n... 他 ${uniqueMatches.length - 5}件` : '')
-        : `❌ "${searchTerm}" が見つかりませんでした\n\n` +
+        : `"${searchTerm}" が見つかりませんでした\n\n` +
           `戦略: ${strategy}\n` +
           `進捗: ${result.searchProgress}\n\n` +
           `別の戦略を試すか、検索語を変更してください。`;
@@ -257,7 +395,7 @@ server.registerTool(
         content: [
           {
             type: 'text',
-            text: `❌ バッチ検索失敗\n${structuredError.formatted}`,
+            text: `バッチ検索失敗\n${structuredError.formatted}`,
           },
         ],
         structuredContent: structuredError.payload,
