@@ -1,0 +1,19 @@
+{
+  "name": "trocco-batch-search-server",
+  "version": "0.1.0",
+  "description": "Claude Desktop MCP server for batch searching Trocco job definitions",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "lint": "echo 'No lint configured'"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.1",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  }
+}
