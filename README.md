@@ -1,4 +1,4 @@
-# Trocco Batch Search Server
+# Trocco Batch Search MCP Server
 
 Troccoのジョブ定義を効率的に検索するためのMCPサーバーです。
 
