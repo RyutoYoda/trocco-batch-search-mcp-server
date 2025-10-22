@@ -60,14 +60,6 @@ Claude Desktopの設定ファイルに以下を追加：
 - `strategy`: 検索戦略（オプション、デフォルト: exhaustive_scan）
 - `maxBatches`: 最大バッチ数（オプション、デフォルト: 10、最大: 50）
 
-## 例
-
-```
-trocco_batch_search(searchTerm="売上", strategy="exhaustive_scan", maxBatches=20)
-```
-
-これにより、「売上」を含むジョブ定義を最大20バッチ分検索します。
-
 ## 取得できる情報
 
 - **基本情報**: 名前、説明、入出力タイプ、作成者、URL
