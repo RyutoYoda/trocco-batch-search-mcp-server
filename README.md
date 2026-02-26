@@ -47,7 +47,7 @@ Claude Desktopの設定ファイルに以下を追加：
 
 `trocco_batch_search`ツールを使用して、ジョブ定義を検索できます。
 
-### 検索戦略
+### 検索
 
 - **exhaustive_scan**: ページネーションを使って全ての定義を順番にスキャン（デフォルト）
 - **keyword_chunks**: 検索語の部分文字列で検索
